@@ -34,12 +34,13 @@ add_executable(server
 target_link_libraries(server cJSON amc_proto log)
 target_compile_definitions(server PRIVATE ANDROID_NDK DISABLE_IMPORTGL)
 
-#INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src/main/cpp)
-#INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/protobuf)
-#INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/protobuf/google)
-#INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/build/gen/cpp)
+#// 如果单独编译so请开启这个设置，开启后test项目会没有so
+INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src/main/cpp)
+INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/protobuf)
+INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/protobuf/google)
+INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/build/gen/cpp)
 
-#set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib_output) // 如果单独编译so请开启这个设置，开启后test项目会没有so
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/lib_output)
 
 
 #"arm64-v8a"

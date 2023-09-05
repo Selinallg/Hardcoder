@@ -26,7 +26,7 @@
 //       LOCAL_LDLIBS := -L$(EXT_DEP)/lib/$(TARGET_ARCH_ABI)/ -l依赖so的名称，如为libxx.so，则这里输入xx
 //////////////////////////////////////////////////////////////
 
-import org.gradle.util.GFileUtils;
+//import org.gradle.util.GFileUtils;
 //////////////////////////////////////////////////////////////
 //  Constant Declarations
 //////////////////////////////////////////////////////////////
@@ -146,7 +146,7 @@ def copyExportedHeaders(targetVariant) {
     if (!exportedHeadersDir.exists()) {
         exportedHeadersDir.mkdirs()
     } else {
-        GFileUtils.cleanDirectory(exportedHeadersDir)
+//        GFileUtils.cleanDirectory(exportedHeadersDir)
     }
     def headerFilters = getExportedHeaderFilters(targetVariant)
     copy {
@@ -170,82 +170,82 @@ def getUniformedPath(path) {
     return (File.separator != '/') ? path.replace(File.separator, '/') : path
 }
 
-def getExportedHeaderFilters(targetVariant) {
-    Set<HeaderFilter> includeFilters = []
-    def exportedFilterFetcher = { ExtensionAware target ->
-        def exportedHeaderExt = target.extensions.findByName('exportHeaders')
-        if(exportedHeaderExt) {
-            return ((ExportedHeadersExtension) exportedHeaderExt).headerFilters
-        }
-    }
-    includeFilters.addAll(exportedFilterFetcher(project.android.defaultConfig.externalNativeBuildOptions))
-    includeFilters.addAll(exportedFilterFetcher(targetVariant.buildType.buildType.externalNativeBuildOptions))
-    targetVariant.productFlavors*.each { flavor ->
-        includeFilters.addAll(exportedFilterFetcher(flavor.productFlavor.externalNativeBuildOptions))
-    }
-    return includeFilters
-}
+//def getExportedHeaderFilters(targetVariant) {
+//    Set<HeaderFilter> includeFilters = []
+//    def exportedFilterFetcher = { ExtensionAware target ->
+//        def exportedHeaderExt = target.extensions.findByName('exportHeaders')
+//        if(exportedHeaderExt) {
+//            return ((ExportedHeadersExtension) exportedHeaderExt).headerFilters
+//        }
+//    }
+//    includeFilters.addAll(exportedFilterFetcher(project.android.defaultConfig.externalNativeBuildOptions))
+//    includeFilters.addAll(exportedFilterFetcher(targetVariant.buildType.buildType.externalNativeBuildOptions))
+//    targetVariant.productFlavors*.each { flavor ->
+//        includeFilters.addAll(exportedFilterFetcher(flavor.productFlavor.externalNativeBuildOptions))
+//    }
+//    return includeFilters
+//}
 
-def mountCopyNativePrebuiltsAction(targetVariant) {
-    def exportedArtifactsDir = getExportedNativeArtifactsDir(targetVariant)
-    def exportedHeadersDir = new File(exportedArtifactsDir, HEADERS_DIR_NAME)
-    def exportedPrebuiltsDir = new File(exportedArtifactsDir, PREBUILTS_DIR_NAME)
-    if (!exportedPrebuiltsDir.exists()) {
-        exportedPrebuiltsDir.mkdirs()
-    }
-    def bundleTask = targetVariant.getPackageLibrary() as Zip
-    targetVariant.getExternalNativeBuildTasks().each { nativeBuildTask ->
-        nativeBuildTask.doLast {
-            GFileUtils.cleanDirectory(exportedPrebuiltsDir)
-            copy {
-                duplicatesStrategy DuplicatesStrategy.FAIL
-                includeEmptyDirs = false
-                from(nativeBuildTask.getObjFolder()) {
-                    include '**/*.so'
-                    include '**/*.a'
-                }
-                into exportedPrebuiltsDir
-            }
-        }
-    }
-    bundleTask.with {
-        from(exportedPrebuiltsDir) {
-            // 'so' file is automatically packaged into the AAR.
-            exclude '**/*.so'
-            into AAR_JNI_DIRENTRY_NAME
-        }
-        from(exportedHeadersDir) {
-            into AAR_HEADERS_DIRENTRY_NAME
-        }
-    }
-}
+//def mountCopyNativePrebuiltsAction(targetVariant) {
+//    def exportedArtifactsDir = getExportedNativeArtifactsDir(targetVariant)
+//    def exportedHeadersDir = new File(exportedArtifactsDir, HEADERS_DIR_NAME)
+//    def exportedPrebuiltsDir = new File(exportedArtifactsDir, PREBUILTS_DIR_NAME)
+//    if (!exportedPrebuiltsDir.exists()) {
+//        exportedPrebuiltsDir.mkdirs()
+//    }
+//    def bundleTask = targetVariant.getPackageLibrary() as Zip
+//    targetVariant.getExternalNativeBuildTasks().each { nativeBuildTask ->
+//        nativeBuildTask.doLast {
+////            GFileUtils.cleanDirectory(exportedPrebuiltsDir)
+//            copy {
+//                duplicatesStrategy DuplicatesStrategy.FAIL
+//                includeEmptyDirs = false
+//                from(nativeBuildTask.getObjFolder()) {
+//                    include '**/*.so'
+//                    include '**/*.a'
+//                }
+//                into exportedPrebuiltsDir
+//            }
+//        }
+//    }
+//    bundleTask.with {
+//        from(exportedPrebuiltsDir) {
+//            // 'so' file is automatically packaged into the AAR.
+//            exclude '**/*.so'
+//            into AAR_JNI_DIRENTRY_NAME
+//        }
+//        from(exportedHeadersDir) {
+//            into AAR_HEADERS_DIRENTRY_NAME
+//        }
+//    }
+//}
 
-def propergateNativeArtifacts(targetVariant) {
-    def apiElements = targetVariant.variantData.variantDependency.apiElements
-    def apiElementsAttrs = apiElements.attributes
-    def nativeAPIElements = project.configurations.maybeCreate(targetVariant.name + 'NativeAPIElement')
-    nativeAPIElements.setCanBeResolved(false)
-    nativeAPIElements.extendsFrom apiElements
-    nativeAPIElements.attributes { myAttrs ->
-        apiElementsAttrs.keySet().each { agpAttr ->
-            if (agpAttr.type == Usage) {
-                // replace this attribute so that our produce configuration can
-                // only be matched by our consumer.
-                myAttrs.attribute(agpAttr, ATTR_USAGE_VALUE_NATIVE_API)
-            } else {
-                myAttrs.attribute(agpAttr, apiElementsAttrs.getAttribute(agpAttr))
-            }
-        }
-    }
-    nativeAPIElements.outgoing.variants { variants ->
-        variants.create(EXPORTED_NATIVE_ARTIFACTS_DIR_NAME) { variant ->
-            def exportedArtifactsDir = getExportedNativeArtifactsDir(targetVariant)
-            variant.artifact(exportedArtifactsDir) { artifact ->
-                artifact.setType(EXPORTED_NATIVE_ARTIFACTS_DIR_NAME)
-            }
-        }
-    }
-}
+//def propergateNativeArtifacts(targetVariant) {
+//    def apiElements = targetVariant.variantData.variantDependency.apiElements
+//    def apiElementsAttrs = apiElements.attributes
+//    def nativeAPIElements = project.configurations.maybeCreate(targetVariant.name + 'NativeAPIElement')
+//    nativeAPIElements.setCanBeResolved(false)
+//    nativeAPIElements.extendsFrom apiElements
+//    nativeAPIElements.attributes { myAttrs ->
+//        apiElementsAttrs.keySet().each { agpAttr ->
+//            if (agpAttr.type == Usage) {
+//                // replace this attribute so that our produce configuration can
+//                // only be matched by our consumer.
+//                myAttrs.attribute(agpAttr, ATTR_USAGE_VALUE_NATIVE_API)
+//            } else {
+//                myAttrs.attribute(agpAttr, apiElementsAttrs.getAttribute(agpAttr))
+//            }
+//        }
+//    }
+//    nativeAPIElements.outgoing.variants { variants ->
+//        variants.create(EXPORTED_NATIVE_ARTIFACTS_DIR_NAME) { variant ->
+//            def exportedArtifactsDir = getExportedNativeArtifactsDir(targetVariant)
+//            variant.artifact(exportedArtifactsDir) { artifact ->
+//                artifact.setType(EXPORTED_NATIVE_ARTIFACTS_DIR_NAME)
+//            }
+//        }
+//    }
+//}
 
 def injectNativeDependenciesPath() {
     def extractedNativeDepsDir = getExtractedNativeDependenciesDir()
@@ -306,7 +306,7 @@ def generateBuildInfoHeader(boolean stubOnly) {
 def cleanExtractNativeDepsDir() {
     def extractedNativeDepsDir = getExtractedNativeDependenciesDir()
     if (extractedNativeDepsDir.exists()) {
-        GFileUtils.cleanDirectory(extractedNativeDepsDir)
+//        GFileUtils.cleanDirectory(extractedNativeDepsDir)
     }
 }
 
@@ -426,7 +426,7 @@ def generateBuildInfoModule() {
     if (!buildInfoModuleDir.exists()) {
         buildInfoModuleDir.mkdirs()
     } else {
-        GFileUtils.cleanDirectory(buildInfoModuleDir)
+//        GFileUtils.cleanDirectory(buildInfoModuleDir)
     }
 
     def hasBuildVersion = project.extensions.findByName('wechatPublish') != null
@@ -503,44 +503,46 @@ class NativeRuntimeAttrCompatibilityRules implements AttributeCompatibilityRule<
     }
 }
 
-class ExportedHeadersExtension {
-    Set<HeaderFilter> headerFilters = []
+//class ExportedHeadersExtension {
+//    Set<HeaderFilter> headerFilters = []
+//
+//    def from(String path) {
+//        headerFilters.add(new HeaderFilter(path))
+//    }
+//
+//    def from(String path, Action<HeaderFilter> configAction) {
+//        def headerFilter = new HeaderFilter(path)
+//        configAction.execute(headerFilter)
+//        headerFilters.add(headerFilter)
+//    }
+//
+//    def from(File file) {
+//        from(file.absolutePath)
+//    }
+//
+//    def from(File file, Action<HeaderFilter> configAction) {
+//        from(file.absolutePath, configAction)
+//    }
+//}
 
-    def from(String path) {
-        headerFilters.add(new HeaderFilter(path))
-    }
+//-----------------------------------------------------------------------------
 
-    def from(String path, Action<HeaderFilter> configAction) {
-        def headerFilter = new HeaderFilter(path)
-        configAction.execute(headerFilter)
-        headerFilters.add(headerFilter)
-    }
-
-    def from(File file) {
-        from(file.absolutePath)
-    }
-
-    def from(File file, Action<HeaderFilter> configAction) {
-        from(file.absolutePath, configAction)
-    }
-}
-
-class HeaderFilter {
-    String dirPath
-    Set<String> includePatterns = []
-    Set<String> excludePatterns = []
-
-    HeaderFilter(String dirPath) {
-        this.dirPath = dirPath
-    }
-
-    def include(String pattern) {
-        includePatterns.add(pattern)
-    }
-
-    def exclude(String pattern) {
-        excludePatterns.add(pattern)
-    }
-}
+//class HeaderFilter {
+//    String dirPath
+//    Set<String> includePatterns = []
+//    Set<String> excludePatterns = []
+//
+//    HeaderFilter(String dirPath) {
+//        this.dirPath = dirPath
+//    }
+//
+//    def include(String pattern) {
+//        includePatterns.add(pattern)
+//    }
+//
+//    def exclude(String pattern) {
+//        excludePatterns.add(pattern)
+//    }
+//}
 
 //////////////////////////////////////////////////////////////
